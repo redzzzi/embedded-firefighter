@@ -2,7 +2,6 @@
 #define __FIRE_DETECT_H__
 
 #include "stm32f10x.h"
-#include <stdbool.h>
 
 /* 불꽃 센서 핀 정의 (CubeMX에서 설정한 GPIO에 맞게 수정) */
 #define FLAME_GPIO_Port      GPIOA
