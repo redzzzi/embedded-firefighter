@@ -1,3 +1,9 @@
+#include "stm32f10x.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_dma.h"
+#include "stm32f10x_adc.h"
+#include "bluetooth.h"
 #include "water_control.h"
 
 #define WATER_THRESHOLD 1000  // 물 부족 판단 기준값 (0~4095)
