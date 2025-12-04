@@ -1,5 +1,13 @@
 #include "motor.h"
 
+/* PWM 펄스 범위 (0.6ms ~ 2.4ms) */
+#define SERVO_MIN  600
+#define SERVO_MAX  2400
+#define SERVO_STEP 20  // 한 번 호출 시 이동할 펄스 크기
+
+static int16_t current_pulse = 1500;
+static int8_t  move_direction = 1; // 1: 증가(시계), -1: 감소(반시계)
+
 void motor_init(void)
 {
     /* GPIOA, TIM2 클럭 활성화 */
@@ -38,14 +46,46 @@ void motor_set_speed(uint16_t pulse)
     TIM_SetCompare1(TIM2, pulse);   // 0~20000 범위 PWM 설정
 }
 
-/* 기본 회전 시작 */
+/* 초기 회전 시작 (중립 위치) */
 void motor_start(void)
 {
-    motor_set_speed(1200);          // 360도 서보 회전 시작(예시값)
+    // motor_set_speed(1500);
+    // current_pulse = 1500;
+    // move_direction = 1;
+    // 현재 위치 유지하며 다시 시작
 }
 
-/* 모터 정지 */
+/* 모터 정지 (현재 위치 유지) */
 void motor_stop(void)
 {
-    motor_set_speed(1500);          // 1500us = 중립(정지)
+    // PWM을 끄거나, 현재 각도 유지
+    // 서보는 펄스를 계속 줘야 힘을 유지하므로 별도 조치 없음
+    // 다만 움직이는 task를 멈추면 그 자리에서 멈춤
+}
+
+/* 주기적으로 호출되어 모터를 좌우로 흔드는 함수 */
+void motor_task(void)
+{
+    // 속도 조절용 카운터 (main 루프 속도에 따라 값 조절 필요)
+    static volatile uint32_t delay_cnt = 0;
+    
+    if (delay_cnt++ < 20000) return; // 적절한 딜레이 (너무 빠르면 모터가 못 따라감)
+    delay_cnt = 0;
+
+    // 각도 변경
+    current_pulse += (move_direction * SERVO_STEP);
+
+    // 범위 체크 및 방향 전환
+    if (current_pulse >= SERVO_MAX)
+    {
+        current_pulse = SERVO_MAX;
+        move_direction = -1; // 감소 방향으로 전환
+    }
+    else if (current_pulse <= SERVO_MIN)
+    {
+        current_pulse = SERVO_MIN;
+        move_direction = 1;  // 증가 방향으로 전환
+    }
+
+    motor_set_speed(current_pulse);
 }

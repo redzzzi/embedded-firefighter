@@ -64,10 +64,15 @@ void FireDetect_Task(void)
     switch (fire_state)
     {
         case FIRE_IDLE:
+            // 평상시: 불꽃 감지 체크 + 모터 회전
             if (FireDetect_Check())
             {
-                motor_stop(); // stop motor
+                motor_stop(); // stop motor (현재 위치 유지)
                 fire_state = FIRE_DETECTED;
+            }
+            else
+            {
+                motor_task(); // <--- 모터를 계속 왔다 갔다 하게 만듦
             }
             break;
 
@@ -86,7 +91,7 @@ void FireDetect_Task(void)
             {
                 // printf("FIRE CLEARED!\r\n");
                 buzzer_off(); 
-                motor_start(); // 모터 재가동
+                motor_start(); // 모터 재가동 준비
                 fire_state = FIRE_IDLE;
             }
             break;
