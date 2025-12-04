@@ -2,7 +2,13 @@
 #define __FIRE_DETECT_H__
 
 #include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "water_control.h"
+#include "bluetooth.h"
 #include <stdbool.h>
+#include <stdio.h>
+#include "motor.h"
 
 /* 불꽃 센서 핀 정의 (CubeMX에서 설정한 GPIO에 맞게 수정) */
 #define FLAME_GPIO_Port      GPIOA

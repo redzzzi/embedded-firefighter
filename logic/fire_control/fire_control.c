@@ -1,8 +1,5 @@
-// #include "bluetooth.h"
 #include "fire_control.h"
-#include "motor.h"
-#include <stdio.h>
-// #include "water_control.h"
+
 
 static FireState_t fire_state = FIRE_IDLE;
 
@@ -43,8 +40,9 @@ void FireDetect_Task(void)
         case FIRE_IDLE:
             if (FireDetect_Check())
             {
-                motor_stop(); // stop motor
                 fire_state = FIRE_DETECTED;
+                motor_stop(); 
+                Water_HandleFire();
             }
             break;
 
@@ -58,13 +56,15 @@ void FireDetect_Task(void)
             break;
 
         case FIRE_ALERT: 
+            Water_HandleFire();
             // 불이 꺼졌는지 확인하여 복귀하는 로직 추가
             if (!FireDetect_Check()) 
             {
                 printf("FIRE CLEARED!\r\n");
                 // buzzer_off(); 
-                motor_start(); // 모터 재가동
                 fire_state = FIRE_IDLE;
+                motor_start(); // 모터 재가동
+                Water_StopAll();
             }
             break;
 
