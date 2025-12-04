@@ -12,35 +12,26 @@ int main(void)
 {
     // 1. 시스템 및 블루투스 초기화
     SystemInit();
-    BT_Init(); 
+    BT_Init(); // 이 함수 안에서 USART2가 초기화됩니다.
 
     // 2. 시작 메시지 전송
-    BT_SendString("\r\n[TEST] Bluetooth Connected Successfully!\r\n");
-    BT_SendString("[TEST] Type something on your phone...\r\n");
-
+    BT_SendString("\r\n[SYSTEM] Firefighter Robot Ready.\r\n");
+    BT_SendString("[SYSTEM] Bluetooth: USART2 (PD5/Tx, PD6/Rx)\r\n");
+    
     while(1)
     {
         // --- 테스트 1: 스마트폰에서 데이터가 오면 그대로 다시 보냄 (Echo) ---
-        if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) != RESET)
+        // ★ 수정: USART1 -> USART2 로 변경해야 함!
+        if (USART_GetFlagStatus(USART2, USART_FLAG_RXNE) != RESET)
         {
-            // 1바이트 받기
-            uint16_t receivedData = USART_ReceiveData(USART1);
+            // 1바이트 받기 (USART2에서)
+            uint16_t receivedData = USART_ReceiveData(USART2);
             
-            // 받은 데이터 다시 보내기 (Echo)
-            USART_SendData(USART1, receivedData);
+            // 받은 데이터 다시 보내기 (Echo) (USART2로)
+            USART_SendData(USART2, receivedData);
             
-            // 보내는 동안 기다리기
-            while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+            // 보내는 동안 기다리기 (USART2 완료 대기)
+            while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET);
         }
-
-        // --- 테스트 2: 2초마다 생존 신고 메시지 보내기 (옵션) ---
-        /*
-        static int counter = 0;
-        counter++;
-        if (counter > 2000000) { // 대략적인 딜레이
-            BT_SendString("[ALIVE] System is running...\r\n");
-            counter = 0;
-        }
-        */
     }
 }
