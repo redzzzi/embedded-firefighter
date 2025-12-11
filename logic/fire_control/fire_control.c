@@ -79,9 +79,7 @@ void FireDetect_Task(void)
         case FIRE_DETECTED:
             buzzer_on();
             // pump_start();
-            // bluetooth_send("FIRE DETECTED!\r\n");
-            // printf("FIRE DETECTED!\r\n");
-
+            BT_SendString("[ALERT] FIRE DETECTED! \r\n");   
             fire_state = FIRE_ALERT;
             break;
 
@@ -90,7 +88,7 @@ void FireDetect_Task(void)
             // 불이 꺼졌는지 확인하여 복귀하는 로직 추가
             if (!FireDetect_Check()) 
             {
-                printf("FIRE CLEARED!\r\n");
+                BT_SendString("[INFO] Fire Cleared. Returning to Monitoring Mode.\r\n");
                 // printf("FIRE CLEARED!\r\n");
                 buzzer_off(); 
                 motor_start(); // 모터 재가동
