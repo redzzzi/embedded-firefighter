@@ -4,7 +4,8 @@
 #include "stm32f10x_usart.h"
 #include "misc.h"
 #include "motor.h"
-
+#include "bluetooth.h"
+#include "fire_control.h"
 
 void Init(void);
 void RccInit(void);
@@ -75,6 +76,7 @@ void Init(void) {
     GpioInit();
     AdcInit();
     Adc2Init();
+    BT_Init(); // BT
     NvicInit();
     motor_init();
 }
@@ -171,6 +173,9 @@ void Adc2Init(void) {
 
 void NvicInit(void) {
     NVIC_InitTypeDef NVIC_InitStructure;
+
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); // BT
+    NVIC_EnableIRQ(USART1_IRQn); // BT
 
     NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
