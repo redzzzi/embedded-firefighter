@@ -56,8 +56,6 @@ void BT_Init(void)
 
     USART_Init(USART1, &USART_InitStructure);
     USART_Cmd(USART1, ENABLE);
-
-    BT_SendString("<<< BLUETOOTH TX TEST SUCCESSFUL (NO FIRE LOGIC YET) >>>\r\n");
 }
 
 void BT_SendString(char* str)

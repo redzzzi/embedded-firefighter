@@ -79,6 +79,8 @@ void Init(void) {
     BT_Init(); // BT
     NvicInit();
     motor_init();
+    for (int i=0; i<20000000; i++) {}
+    BT_SendString("<<< BLUETOOTH TX TEST SUCCESSFUL (NO FIRE LOGIC YET) >>>\r\n");
 }
 
 void RccInit(void) {
