@@ -30,12 +30,14 @@ FireState_t firestate;
 volatile uint16_t Fire_Sensor_Value = 0;
 volatile uint16_t Water_Sensor_Value = 0;
 
-#define THRESHOLD 3800
-
+#define FIRE_THRESHOLD 3500
+#define WATER_THRESHOLD 2000
 int main() {
 	Init();
 	motor_start();
-	GPIO_ResetBits(GPIOD, GPIO_Pin_8);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_7);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_6);
 
     while (1) {
     	Water_Sensor_Value = ADC_GetConversionValue(ADC2);
@@ -47,10 +49,18 @@ int main() {
 
     	        case FIRE_DETECTED:
     	        	Water_Sensor_Value = ADC_GetConversionValue(ADC2);
-    	        	GPIO_SetBits(GPIOD, GPIO_Pin_8);
-    	        	Pol_Delay_us(200000);
-    	        	GPIO_ResetBits(GPIOD, GPIO_Pin_8);
-    	        	firestate = FIRE_IDLE;
+    	        	if(Water_Sensor_Value > WATER_THRESHOLD){
+						GPIO_SetBits(GPIOA, GPIO_Pin_5);
+						Pol_Delay_us(200000);
+						GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+						firestate = FIRE_IDLE;
+    	        	}
+    	        	else{
+    	        		GPIO_SetBits(GPIOA, GPIO_Pin_6);
+						Pol_Delay_us(200000);
+						GPIO_ResetBits(GPIOA, GPIO_Pin_6);
+						firestate = FIRE_IDLE;
+    	        	}
     	            break;
 
     	        default:
@@ -72,31 +82,40 @@ void Init(void) {
 void RccInit(void) {
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC2, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
 }
 
 void GpioInit(void) {
     GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;	//fire sensor
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;	//fire sensor pb0
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;	//water level sensor
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;	//water level sensor pb1
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    GPIO_InitTypeDef water_motor; //water motor relay module pin pd8
-    water_motor.GPIO_Pin = GPIO_Pin_8;
-    water_motor.GPIO_Mode = GPIO_Mode_Out_PP;
-    water_motor.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOD, &water_motor);
+	//water motor module pin pa5
+    GPIO_InitTypeDef water_module;
+    water_module.GPIO_Pin = GPIO_Pin_5;
+    water_module.GPIO_Mode = GPIO_Mode_Out_PP;
+    water_module.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &water_module);
 
-    GPIO_InitTypeDef fan_motor; //fan motor module pin pd9
-    fan_motor.GPIO_Pin = GPIO_Pin_9;
-    fan_motor.GPIO_Mode = GPIO_Mode_Out_PP;
-    fan_motor.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOD, &fan_motor);
+	GPIO_InitTypeDef fan_module;
+	fan_module.GPIO_Pin = GPIO_Pin_6;
+	fan_module.GPIO_Mode = GPIO_Mode_Out_PP;
+	fan_module.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &fan_module);
+
+
+	GPIO_InitTypeDef reset_pin;
+	reset_pin.GPIO_Pin = GPIO_Pin_7;
+	reset_pin.GPIO_Mode = GPIO_Mode_Out_PP;
+	reset_pin.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &reset_pin);
 }
 
 void AdcInit(void) {
@@ -165,16 +184,30 @@ void NvicInit(void) {
  * ISR
  */
 
+/* ISR */
 void ADC1_2_IRQHandler() {
+    static uint16_t noise_filter_count = 0; // 카운트 변수 (static 필수)
+
     if (ADC_GetITStatus(ADC1, ADC_IT_EOC) != RESET) {
         Fire_Sensor_Value = ADC_GetConversionValue(ADC1);
-        //--- Clear ADC1 AWD pending interrupt bit
-        if(Fire_Sensor_Value <= THRESHOLD){
-        	firestate = FIRE_DETECTED;
+
+        // 1. 값이 튀었을 때 (불꽃 감지 신호)
+        if (Fire_Sensor_Value <= FIRE_THRESHOLD) {
+            noise_filter_count++; // 카운트를 셉니다.
+
+            // 2. 연속으로 500번 이상 감지되어야 진짜 불로 인정
+            // (ADC는 1초에 수십만 번 측정하므로 500번도 아주 짧은 시간입니다)
+            if (noise_filter_count > 500) {
+                firestate = FIRE_DETECTED;
+                // fire_check_count = 0; // 상태가 바뀌었으니 초기화하지 않고 유지해도 됨
+            }
         }
-        //else firestate = FIRE_IDLE;
+        else {
+            // 3. 중간에 값이 다시 정상으로 돌아오면(노이즈였다면) 카운트 초기화
+            noise_filter_count = 0;
+        }
+
         ADC_ClearITPendingBit(ADC1, ADC_IT_EOC);
     }
 }
-
 
