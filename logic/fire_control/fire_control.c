@@ -72,14 +72,16 @@ void FireDetect_Task(void)
             {
                 fire_state = FIRE_DETECTED;
                 motor_stop(); 
-                Water_HandleFire();
+                // Water_HandleFire(); // FIRE_DETECTED에서 ALART로 넘어갈 때 처리
             }
             break;
 
         case FIRE_DETECTED:
             buzzer_on();
             // pump_start();
-            BT_SendString("[ALERT] FIRE DETECTED! \r\n");   
+            BT_SendString("[ALERT] FIRE DETECTED! \r\n");  
+            Log_Event("FIRE DETECTED"); // 로깅
+            Water_HandleFire(); 
             fire_state = FIRE_ALERT;
             break;
 
@@ -89,12 +91,12 @@ void FireDetect_Task(void)
             if (!FireDetect_Check()) 
             {
                 BT_SendString("[INFO] Fire Cleared. Returning to Monitoring Mode.\r\n");
+                Log_Event("FIRE CLEARED");
                 // printf("FIRE CLEARED!\r\n");
                 buzzer_off(); 
                 motor_start(); // 모터 재가동
-                fire_state = FIRE_IDLE;
-                motor_start(); // 모터 재가동
                 Water_StopAll();
+                fire_state = FIRE_IDLE;
             }
             break;
 
