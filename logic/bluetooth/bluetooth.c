@@ -1,65 +1,85 @@
-// main.c (블루투스 최소 동작 테스트 버전)
-
-#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_usart.h"
 #include "bluetooth.h"
+#include <string.h>
+#include <stdio.h>
 
-#include "misc.h" 
 
-// 블루투스 로깅에 사용될 시스템 시간 변수는 주석 처리하거나 0으로 유지합니다.
-// volatile uint32_t sys_time_ms = 0; 
+EventLog_t LastEvent;
+extern uint32_t sys_time_ms;
 
-// SysTick_Handler는 테스트를 위해 제외합니다.
-
-void NVIC_Configure_BT(void) 
-{
-    NVIC_InitTypeDef NVIC_InitStructure;
-
-    // 1. 우선순위 그룹 설정 (예: Group 4)
-    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); 
-
-    // 2. USART1 인터럽트 활성화
-    NVIC_EnableIRQ(USART1_IRQn); // 인터럽트 채널 활성화 [cite: 114, 256]
-    
-    // 3. NVIC 구조체 설정
-    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; // 예시 우선순위
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; // 예시 우선순위
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+void Log_Event(char* desc) {
+    LastEvent.timestamp = sys_time_ms;
+    strncpy(LastEvent.event_desc, desc, sizeof(LastEvent.event_desc) - 1);
+    LastEvent.event_desc[sizeof(LastEvent.event_desc) - 1] = '\0';
 }
 
-void System_Init(void)
-{
-    // 기본 시스템 클럭 설정 (72MHz)
-    SystemInit(); 
+void Log_SendLastEvent_BT(void) {
+    char tx_buf[80];
+    // 밀리초를 초 단위로 변환
+    uint32_t seconds = LastEvent.timestamp / 1000;
 
-    // --- [블루투스 통신 최소 초기화] ---
-    BT_Init(); // 블루투스 (USART1) 초기화
-    NVIC_Configure_BT();
-    
-    for (int i=0; i<20000000; i++) {}
-    // 이외의 모든 프로젝트 모듈 초기화는 제외합니다.
-    /*
-    motor_init();       
-    Water_Init();       
-    FireDetect_Init();  
-    */
-    
-    // --- [테스트 메시지 송신] ---
-    // 시스템 시작과 동시에 이 메시지가 송신되어야 합니다.
-    BT_SendString("<<< BLUETOOTH TX TEST SUCCESSFUL (NO FIRE LOGIC) >>>\r\n");
+    snprintf(tx_buf, sizeof(tx_buf), "[LOG] Time: %lu s, Event: %s\r\n", seconds, LastEvent.event_desc);
+    BT_SendString(tx_buf);
 }
 
-
-int main(void)
+void BT_Init(void)
 {
-    // uint32_t last_report_time = 0; // 사용하지 않음
+    // 1. 클럭 활성화 (GPIOA, USART1)
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_USART1, ENABLE);
 
-    System_Init();
+    // 2. GPIO 설정 (Tx: PA9, Rx: PA10)
+    GPIO_InitTypeDef GPIO_InitStructure;
     
-    while (1)
+    // Tx (PA9)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // Rx (PA10)
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    // 3. USART1 설정 (9600-8-N-1)
+    USART_InitTypeDef USART_InitStructure;
+    USART_InitStructure.USART_BaudRate = 9600;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+
+    USART_Init(USART1, &USART_InitStructure);
+    USART_Cmd(USART1, ENABLE);
+}
+
+void BT_SendString(char* str)
+{
+    while (*str)
     {
-        // 무한 루프 내에서 어떠한 프로젝트 로직도 실행하지 않습니다.
-        // BT_SendString이 정상 작동했다면, 이 시점에서 스마트폰에는 메시지가 출력되었어야 합니다.
+        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+        USART_SendData(USART1, *str++);
+    }
+}
+
+void USART1_IRQHandler(void) 
+{
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) 
+    {
+        uint16_t received_data = USART_ReceiveData(USART1);
+
+        // 1. (선택적) 에코백: 수신한 데이터를 다시 스마트폰으로 보내 확인
+        // BT_SendString("Received: "); 
+        // USART_SendData(USART1, received_data);
+
+        // 2. 명령어 처리 로직 호출 (예: motor_stop(), system_reset())
+        // if (received_data == 'S') { motor_stop(); }
+
+        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
     }
 }
