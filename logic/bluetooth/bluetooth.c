@@ -52,6 +52,8 @@ void BT_Init(void)
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
     USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 
+    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+
     USART_Init(USART1, &USART_InitStructure);
     USART_Cmd(USART1, ENABLE);
 }
@@ -62,5 +64,22 @@ void BT_SendString(char* str)
     {
         while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
         USART_SendData(USART1, *str++);
+    }
+}
+
+void USART1_IRQHandler(void) 
+{
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) 
+    {
+        uint16_t received_data = USART_ReceiveData(USART1);
+
+        // 1. (선택적) 에코백: 수신한 데이터를 다시 스마트폰으로 보내 확인
+        // BT_SendString("Received: "); 
+        // USART_SendData(USART1, received_data);
+
+        // 2. 명령어 처리 로직 호출 (예: motor_stop(), system_reset())
+        // if (received_data == 'S') { motor_stop(); }
+
+        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
     }
 }

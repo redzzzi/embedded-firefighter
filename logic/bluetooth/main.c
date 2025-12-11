@@ -12,6 +12,24 @@
 
 // SysTick_Handler는 테스트를 위해 제외합니다.
 
+void NVIC_Configure_BT(void) 
+{
+    NVIC_InitTypeDef NVIC_InitStructure;
+
+    // 1. 우선순위 그룹 설정 (예: Group 4)
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); 
+
+    // 2. USART1 인터럽트 활성화
+    NVIC_EnableIRQ(USART1_IRQn); // 인터럽트 채널 활성화 [cite: 114, 256]
+    
+    // 3. NVIC 구조체 설정
+    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; // 예시 우선순위
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; // 예시 우선순위
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+}
+
 void System_Init(void)
 {
     // 기본 시스템 클럭 설정 (72MHz)
@@ -19,6 +37,7 @@ void System_Init(void)
 
     // --- [블루투스 통신 최소 초기화] ---
     BT_Init(); // 블루투스 (USART1) 초기화
+    NVIC_Configure_BT();
     
     // 이외의 모든 프로젝트 모듈 초기화는 제외합니다.
     /*
