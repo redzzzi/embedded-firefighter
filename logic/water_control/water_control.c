@@ -94,6 +94,24 @@ void Water_HandleFire(void)
     }
 }
 
+// 수위 센서 값(ADC)을 블루투스로 전송하는 함수
+void Water_SendLevel_BT(void) {
+    char tx_buf[50];
+    uint16_t current_adc = adc_value[0]; // volatile 변수 복사
+    
+    // snprintf를 사용하여 문자열 형식화 (printf 사용 가능하도록 설정 필요)
+    snprintf(tx_buf, sizeof(tx_buf), "[STATUS] Water Level: %u (ADC)\r\n", current_adc);
+    BT_SendString(tx_buf);
+    
+    // 물 부족 시 추가 경고를 여기서도 보낼 수 있습니다.
+    /*
+? ? if (current_adc < WATER_THRESHOLD)
+? ? {
+? ? ? ? BT_SendString("[STATUS] WARNING: WATER LOW\r\n");
+? ? }
+    */
+}
+
 void Water_StopAll(void)
 {
     GPIO_ResetBits(GPIOB, PUMP_PIN | FAN_PIN);
