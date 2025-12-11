@@ -2,7 +2,27 @@
 #include "stm32f10x_rcc.h"
 #include "stm32f10x_usart.h"
 #include "bluetooth.h"
+#include <string.h>
 #include <stdio.h>
+
+
+EventLog_t LastEvent;
+extern uint32_t sys_time_ms;
+
+void Log_Event(char* desc) {
+    LastEvent.timestamp = sys_time_ms;
+    strncpy(LastEvent.event_desc, desc, sizeof(LastEvent.event_desc) - 1);
+    LastEvent.event_desc[sizeof(LastEvent.event_desc) - 1] = '\0';
+}
+
+void Log_SendLastEvent_BT(void) {
+    char tx_buf[80];
+    // 밀리초를 초 단위로 변환
+    uint32_t seconds = LastEvent.timestamp / 1000;
+
+    snprintf(tx_buf, sizeof(tx_buf), "[LOG] Time: %lu s, Event: %s\r\n", seconds, LastEvent.event_desc);
+    BT_SendString(tx_buf);
+}
 
 void BT_Init(void)
 {
