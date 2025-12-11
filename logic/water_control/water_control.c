@@ -85,6 +85,7 @@ void Water_HandleFire(void)
         
         // 반복 전송 방지를 위해 상태 변경 시에만 보내는 로직을 추가하면 더 좋음
         BT_SendString("[WARN] No Water! Fan Mode ON.\r\n");
+        Log_Event("WATER LOW & FAN MODE ACTIVATED");
     }
     else
     {
@@ -92,6 +93,8 @@ void Water_HandleFire(void)
         GPIO_SetBits(GPIOB, PUMP_PIN);
         GPIO_ResetBits(GPIOB, FAN_PIN);
     }
+
+    Water_SendLevel_BT();
 }
 
 // 수위 센서 값(ADC)을 블루투스로 전송하는 함수
