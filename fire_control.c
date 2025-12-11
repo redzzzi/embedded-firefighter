@@ -1,4 +1,6 @@
-// #include "bluetooth.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "bluetooth.h"
 #include "fire_control.h"
 #include "motor.h"
 // #include <stdio.h>
