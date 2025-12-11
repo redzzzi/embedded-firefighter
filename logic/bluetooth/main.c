@@ -1,46 +1,47 @@
-#include "stm32f10x.h"
-#include "stm32f10x_usart.h"
-#include "bluetooth.h"
-#include <stdio.h>
+// main.c (블루투스 최소 동작 테스트 버전)
 
-// 간단한 딜레이 함수
-void Delay_Test(volatile uint32_t count) {
-    while (count--);
+#include "stm32f10x.h"
+#include "bluetooth.h"
+#include "motor.h" 
+#include "water_control.h" 
+#include "fire_control.h" 
+#include "misc.h" 
+
+// 블루투스 로깅에 사용될 시스템 시간 변수는 주석 처리하거나 0으로 유지합니다.
+// volatile uint32_t sys_time_ms = 0; 
+
+// SysTick_Handler는 테스트를 위해 제외합니다.
+
+void System_Init(void)
+{
+    // 기본 시스템 클럭 설정 (72MHz)
+    SystemInit(); 
+
+    // --- [블루투스 통신 최소 초기화] ---
+    BT_Init(); // 블루투스 (USART1) 초기화
+    
+    // 이외의 모든 프로젝트 모듈 초기화는 제외합니다.
+    /*
+    motor_init();       
+    Water_Init();       
+    FireDetect_Init();  
+    */
+    
+    // --- [테스트 메시지 송신] ---
+    // 시스템 시작과 동시에 이 메시지가 송신되어야 합니다.
+    BT_SendString("<<< BLUETOOTH TX TEST SUCCESSFUL (NO FIRE LOGIC) >>>\r\n");
 }
+
 
 int main(void)
 {
-    // 1. 시스템 및 블루투스 초기화
-    SystemInit();
-    BT_Init(); 
+    // uint32_t last_report_time = 0; // 사용하지 않음
 
-    // 2. 시작 메시지 전송
-    BT_SendString("\r\n[TEST] Bluetooth Connected Successfully!\r\n");
-    BT_SendString("[TEST] Type something on your phone...\r\n");
-
-    while(1)
+    System_Init();
+    
+    while (1)
     {
-        // --- 테스트 1: 스마트폰에서 데이터가 오면 그대로 다시 보냄 (Echo) ---
-        if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) != RESET)
-        {
-            // 1바이트 받기
-            uint16_t receivedData = USART_ReceiveData(USART1);
-            
-            // 받은 데이터 다시 보내기 (Echo)
-            USART_SendData(USART1, receivedData);
-            
-            // 보내는 동안 기다리기
-            while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-        }
-
-        // --- 테스트 2: 2초마다 생존 신고 메시지 보내기 (옵션) ---
-        /*
-        static int counter = 0;
-        counter++;
-        if (counter > 2000000) { // 대략적인 딜레이
-            BT_SendString("[ALIVE] System is running...\r\n");
-            counter = 0;
-        }
-        */
+        // 무한 루프 내에서 어떠한 프로젝트 로직도 실행하지 않습니다.
+        // BT_SendString이 정상 작동했다면, 이 시점에서 스마트폰에는 메시지가 출력되었어야 합니다.
     }
 }
