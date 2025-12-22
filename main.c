@@ -4,7 +4,8 @@
 #include "stm32f10x_usart.h"
 #include "misc.h"
 #include "motor.h"
-
+#include "bluetooth.h"
+#include "fire_control.h"
 
 void Init(void);
 void RccInit(void);
@@ -19,19 +20,13 @@ void Pol_Delay_us(volatile uint32_t microseconds){	//NOT ACCURATE JUST FOR TESTI
     while (microseconds--);
 }
 
-typedef enum {
-    FIRE_IDLE = 0,      // 기본 상태(모터 회전)
-    FIRE_DETECTED,      // 불꽃 감지됨
-    FIRE_ALERT          // 경고 & 블루투스 송신, 워터레벨 탐색 시작
-} FireState_t;
-
 FireState_t firestate;
 
 volatile uint16_t Fire_Sensor_Value = 0;
 volatile uint16_t Water_Sensor_Value = 0;
 
 #define FIRE_THRESHOLD 3500
-#define WATER_THRESHOLD 2000
+#define WATER_THRESHOLD 1000
 int main() {
 	Init();
 	motor_start();
@@ -48,7 +43,8 @@ int main() {
     	            break;
 
     	        case FIRE_DETECTED:
-    	        	Water_Sensor_Value = ADC_GetConversionValue(ADC2);
+
+    	        	BT_SendString("Fire detected");
     	        	if(Water_Sensor_Value > WATER_THRESHOLD){
 						GPIO_SetBits(GPIOA, GPIO_Pin_5);
 						Pol_Delay_us(200000);
@@ -56,6 +52,7 @@ int main() {
 						firestate = FIRE_IDLE;
     	        	}
     	        	else{
+    	        		BT_SendString("No Water");
     	        		GPIO_SetBits(GPIOA, GPIO_Pin_6);
 						Pol_Delay_us(200000);
 						GPIO_ResetBits(GPIOA, GPIO_Pin_6);
@@ -75,8 +72,11 @@ void Init(void) {
     GpioInit();
     AdcInit();
     Adc2Init();
+    BT_Init(); // BT
     NvicInit();
     motor_init();
+    for (int i=0; i<20000000; i++) {}
+    BT_SendString("<<< BLUETOOTH TX TEST SUCCESSFUL (NO FIRE LOGIC YET) >>>\r\n");
 }
 
 void RccInit(void) {
@@ -172,6 +172,9 @@ void Adc2Init(void) {
 void NvicInit(void) {
     NVIC_InitTypeDef NVIC_InitStructure;
 
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4); // BT
+    NVIC_EnableIRQ(USART1_IRQn); // BT
+
     NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
@@ -210,4 +213,3 @@ void ADC1_2_IRQHandler() {
         ADC_ClearITPendingBit(ADC1, ADC_IT_EOC);
     }
 }
-

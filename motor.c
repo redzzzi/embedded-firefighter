@@ -1,8 +1,8 @@
 #include "motor.h"
 
 /* PWM 펄스 범위 (0.6ms ~ 2.4ms) */
-#define SERVO_MIN  600
-#define SERVO_MAX  2400
+#define SERVO_MIN  1000
+#define SERVO_MAX  2000
 #define SERVO_STEP 20  // 한 번 호출 시 이동할 펄스 크기
 
 static int16_t current_pulse = 1500;
